@@ -34,8 +34,17 @@ def run_example(text, vocab_size=30):
     print("SimpleBPE:")
     print(f"Время обучения: {simple_time:.4f} сек")
     print(f"Размер словаря: {len(simple_bpe.vocab)}")
-    print(f"Словарь: {simple_bpe.vocab}")
-    print(f"Ручная токенизация: {tokenize_manually(text, simple_bpe.vocab)}\n")
+    print(f"Пример словаря: {simple_bpe.vocab[:5]}...")
+    
+    # Демонстрация encode/decode
+    test_phrases = [text, text.split()[0], "неизвестное_слово"]
+    for phrase in test_phrases:
+        encoded = simple_bpe.encode(phrase)
+        decoded = simple_bpe.decode(encoded)
+        print(f"\nФраза: '{phrase}'")
+        print(f"Закодировано: {encoded}")
+        print(f"Декодировано: '{decoded}'")
+        print(f"Совпадение: {phrase == decoded}")
     
     # Optimize BPE
     start = time.time()
@@ -43,14 +52,22 @@ def run_example(text, vocab_size=30):
     opt_bpe.fit(text)
     opt_time = time.time() - start
     
-    print("OptimizeBPE:")
+    print("\nOptimizeBPE:")
     print(f"Время обучения: {opt_time:.4f} сек")
     print(f"Размер словаря: {len(opt_bpe.vocab)}")
-    print(f"Словарь: {opt_bpe.vocab}")
-    print(f"Ручная токенизация: {tokenize_manually(text, opt_bpe.vocab)}\n")
+    print(f"Пример словаря: {opt_bpe.vocab[:5]}...")
+    
+    # Демонстрация encode/decode
+    for phrase in test_phrases:
+        encoded = opt_bpe.encode(phrase)
+        decoded = opt_bpe.decode(encoded)
+        print(f"\nФраза: '{phrase}'")
+        print(f"Закодировано: {encoded}")
+        print(f"Декодировано: '{decoded}'")
+        print(f"Совпадение: {phrase == decoded}")
     
     if opt_time > 0:
-        print(f"Оптимизированная версия быстрее в {simple_time/opt_time:.1f} раз\n")
+        print(f"\nОптимизированная версия быстрее в {simple_time/opt_time:.1f} раз")
 
 if __name__ == "__main__":
     text1 = "мама мыла раму, папа пил какао"
