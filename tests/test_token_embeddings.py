@@ -1,6 +1,6 @@
 import torch
 import pytest
-from simple_llm.embedding.token_embedings import TokenEmbeddings
+from simple_llm.embedding.token_embeddings import TokenEmbeddings
 
 class TestTokenEmbeddings:
     """Unit tests for TokenEmbeddings class"""
