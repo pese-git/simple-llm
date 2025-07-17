@@ -10,7 +10,7 @@
 import torch
 import matplotlib.pyplot as plt
 from sklearn.decomposition import PCA
-from simple_llm.embedding.token_embedings import TokenEmbeddings
+from simple_llm.embedding.token_embeddings import TokenEmbeddings
 
 def basic_example():
     """Базовый пример использования TokenEmbeddings"""
