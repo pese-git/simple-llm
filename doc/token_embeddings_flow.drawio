@@ -1,0 +1,21 @@
+<mxfile>
+  <diagram name="Token Embeddings Flow" id="0">
+    <mxGraphModel>
+      <root>
+        <mxCell id="1"/>
+        <mxCell id="2" parent="1"/>
+        <mxCell id="3" value="Входные токены (индексы)" style="shape=rectangle" parent="2" vertex="1">
+          <mxGeometry x="100" y="100" width="120" height="60"/>
+        </mxCell>
+        <mxCell id="4" value="Lookup в таблице эмбеддингов" style="shape=rectangle" parent="2" vertex="1">
+          <mxGeometry x="100" y="200" width="120" height="60"/>
+        </mxCell>
+        <mxCell id="5" value="Выходные эмбеддинги" style="shape=rectangle" parent="2" vertex="1">
+          <mxGeometry x="100" y="300" width="120" height="60"/>
+        </mxCell>
+        <mxCell id="6" source="3" target="4" parent="2" edge="1"/>
+        <mxCell id="7" source="4" target="5" parent="2" edge="1"/>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>
