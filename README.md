@@ -57,6 +57,25 @@ print(f"Неизвестное слово: {unknown}")
 Неизвестное слово: [-1, -1, 3, -1, -1, -1, -1, -1, -1, 7, -1, -1, -1, 5, 7, -1, 7]
 ```
 
+### Работа с эмбеддингами
+```python
+from simple_llm.embedding import TokenEmbeddings, PositionalEmbeddings
+
+# Инициализация
+token_emb = TokenEmbeddings(vocab_size=1000, emb_size=256)
+pos_emb = PositionalEmbeddings(max_seq_len=512, emb_size=256)
+
+# Пример использования
+tokens = [1, 2, 3]  # Индексы токенов
+embeddings = token_emb(tokens) + pos_emb(len(tokens))
+print(f"Объединенные эмбеддинги: {embeddings.shape}")
+```
+
+## Документация
+- [Токенизация BPE](/doc/bpe_algorithm.md)
+- [Токенные эмбеддинги](/doc/token_embeddings_ru.md) 
+- [Позиционные эмбеддинги](/doc/positional_embeddings_ru.md)
+
 ## Интеграция в проект
 
 Добавьте в ваш `requirements.txt`:
