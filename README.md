@@ -6,31 +6,31 @@
 Унифицированный фреймворк для NLP, включающий:
 - 🎯 Токенизацию на основе BPE
 - 📊 Векторные представления
-- 🧠 Механизмы внимания
+- 🧠 Механизмы внимания (Single/Multi-Head)
 
 ## Оглавление
 - [Быстрый старт](#быстрый-старт)
 - [Архитектура](#архитектура)
 - [Модули](#модули)
 - [Примеры](#примеры)
+- [Документация](#документация)
 - [Установка](#установка)
-- [Разработка](#разработка)
 
 ## Быстрый старт
 ```python
-from simple_llm import SimpleBPE, TokenEmbeddings, HeadAttention
+from simple_llm import SimpleBPE, MultiHeadAttention
 
 # 1. Токенизация
-bpe = SimpleBPE().fit(text)
-tokens = bpe.encode("Привет мир")
+bpe = SimpleBPE().fit(text_corpus)
+tokens = bpe.encode("Пример текста")
 
-# 2. Эмбеддинги
-emb_layer = TokenEmbeddings(10000, 256)
-embeddings = emb_layer(tokens)
-
-# 3. Внимание
-attention = HeadAttention(256, 64)
-output = attention(embeddings)
+# 2. Многоголовое внимание
+mha = MultiHeadAttention(
+    num_heads=8,
+    emb_size=256,
+    head_size=32
+)
+output = mha(torch.randn(1, 10, 256))  # [batch, seq_len, emb_size]
 ```
 
 ## Архитектура
@@ -39,7 +39,7 @@ graph TD
     A[Текст] --> B(Tokenizer)
     B --> C[Токены]
     C --> D[TokenEmbeddings]
-    D --> E[HeadAttention]
+    D --> E[MultiHeadAttention]
     E --> F[Выход модели]
 ```
 
@@ -53,13 +53,19 @@ graph TD
 - `PositionalEmbeddings` - позиционное кодирование
 
 ### Transformer
-- `HeadAttention` - механизм внимания одной головы
+- `HeadAttention` - одно-головое внимание
+- `MultiHeadAttention` - многоголовое внимание (4-16 голов)
 
 ## Примеры
-| Файл | Описание |
-|-------|----------|
-| [example_bpe.py](/example/example_bpe.py) | Базовая токенизация |
-| [head_attention_example.py](/example/head_attention_example.py) | Визуализация внимания |
+```bash
+# Запуск примеров
+python -m example.multi_head_attention_example
+```
+
+## Документация
+- [Токенизация](/doc/bpe_algorithm.md)
+- [Эмбеддинги](/doc/token_embeddings_ru.md)
+- [MultiHeadAttention](/doc/multi_head_attention_ru.md)
 
 ## Установка
 ```bash
@@ -73,6 +79,9 @@ pip install -e .
 # Запуск тестов
 pytest tests/ -v
 
-# Форматирование кода
+# Проверка стиля кода
+flake8 .
+
+# Форматирование
 black .
 ```
