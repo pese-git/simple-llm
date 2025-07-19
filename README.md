@@ -88,9 +88,17 @@ git+https://github.com/yourusername/simple-llm.git
 pip install git+https://github.com/yourusername/simple-llm.git
 ```
 
-## Примеры
+## Примеры использования
 
-Дополнительные примеры использования смотрите в папке [example](/example):
+Дополнительные примеры:
+- [Базовый BPE](/example/example_bpe.py)
+- [Токенные эмбеддинги](/example/example_token_embeddings.py)
+- [Механизм внимания](/example/head_attention_example.py)
+
+Документация:
+- [Токенизация](/doc/bpe_algorithm.md)
+- [Эмбеддинги](/doc/token_embeddings_ru.md)
+- [Внимание](/doc/head_attention_ru.md)
 - Сравнение SimpleBPE и OptimizeBPE
 - Работа с разными языками
 - Настройка параметров токенизации
