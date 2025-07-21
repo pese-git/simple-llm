@@ -17,6 +17,7 @@
 - `HeadAttention` - механизм внимания одной головы
 - `MultiHeadAttention` - многоголовое внимание (4-16 голов)
 - `FeedForward` - двухслойная FFN сеть (расширение → сжатие)
+- `Decoder` - полный декодер Transformer (Self-Attention + FFN)
 
 ## Быстрый старт
 
@@ -40,12 +41,14 @@ model = nn.Sequential(
 - [Токенизация](/doc/bpe_algorithm.md)
 - [MultiHeadAttention](/doc/multi_head_attention_ru.md)
 - [FeedForward](/doc/feed_forward_ru.md)
+- [Decoder](/doc/decoder_ru.md)
 
 ## Примеры
 ```bash
 # Запуск примеров
 python -m example.multi_head_attention_example  # Визуализация внимания
 python -m example.feed_forward_example         # Анализ FFN слоя
+python -m example.decoder_example              # Демонстрация декодера
 ```
 
 ## Установка
