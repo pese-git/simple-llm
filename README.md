@@ -28,6 +28,17 @@ python example/example_gpt.py
 
 ## 🧠 Основные компоненты
 
+### Обработка данных
+```python
+from simple_llm.data.get_data import GetData
+
+dataset = GetData(
+    data=[1, 2, 3, 4, 5],  # Входная последовательность
+    seq_len=3,             # Длина окна
+    device="cuda"          # Устройство (опционально)
+)
+```
+
 ### Модель GPT
 ```python
 from simple_llm.transformer.gpt import GPT
@@ -57,6 +68,7 @@ output = model.generate(
 Полная документация доступна в [doc/](./doc/):
 - [Архитектура GPT](./doc/gpt_documentation_ru.md)
 - [Алгоритм BPE](./doc/bpe_algorithm.md)
+- [Обработка последовательностей](./doc/get_data_documentation_ru.md)
 - [Примеры использования](./example/)
 
 ## 🛠 Тестирование
