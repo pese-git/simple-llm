@@ -1,4 +1,5 @@
 import dill
+from tqdm import tqdm
 
 class BPE:
     """Реализация алгоритма Byte Pair Encoding (BPE) для токенизации текста.
@@ -35,24 +36,30 @@ class BPE:
             >>> tokenizer = BPE(vocab_size=100)
             >>> tokenizer.fit("Это текст для обучения токенизатора")
         """
+        # Инициализируем прогресс-бар
+        pbar = tqdm(total=self.vocab_size, desc="Building vocabulary")
         # 1. Получаем уникальные токены (символы)
         unique_tokens = sorted(set(text))
         tokens = unique_tokens.copy()
+        pbar.update(len(tokens))  # Обновляем прогресс начальными токенами
 
         # 2. Разбиваем текст на токены-символы
         sequence = list(text)
 
         # 3. Объединяем токены до достижения нужного размера словаря
         while len(tokens) < self.vocab_size:
+            pbar.update(1)  # Обновляем прогресс на каждой итерации
+            print(f"\nТекущий размер словаря: {len(tokens)}/{self.vocab_size}")
             #print(f'len={len(tokens)} < {self.vocab_size}')
             # Считаем частоты пар
             pair_freq = {}
             for i in range(len(sequence) - 1):
                 pair = (sequence[i], sequence[i + 1])
-                #print(f'pair = {pair}')
                 if pair not in pair_freq:
                     pair_freq[pair] = 0
                 pair_freq[pair] += 1
+            
+            print(f"Найдено {len(pair_freq)} уникальных пар")
 
 
             #print(f'pair_freq = {pair_freq}')  
@@ -64,12 +71,11 @@ class BPE:
 
             # Находим самую частую пару (в случае равенства — та, что встретилась первой)
             most_frequent_pair = max(pair_freq.items(), key=lambda x: (x[1], -self._pair_first_index(sequence, x[0])))[0]
-            #print(most_frequent_pair)
+            print(f"Самая частая пара: {most_frequent_pair} (встречается {pair_freq[most_frequent_pair]} раз)")
             # Создаем новый токен
             new_token = most_frequent_pair[0] + most_frequent_pair[1]
-            #print(f"new token={new_token}")
+            print(f"Добавлен новый токен: '{new_token}'")
             tokens.append(new_token)
-            #print(f"tokens={tokens}")
 
             i = 0
             new_sequence = []
@@ -88,6 +94,7 @@ class BPE:
         self.vocab = tokens.copy()
         self.token2id = dict(zip(tokens, range(self.vocab_size)))
         self.id2token = dict(zip(range(self.vocab_size), tokens))
+        pbar.close()  # Закрываем прогресс-бар
 
     def _pair_first_index(self, sequence, pair):
         for i in range(len(sequence) - 1):

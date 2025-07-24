@@ -1,3 +1,4 @@
+import dill
 from abc import ABC, abstractmethod
 from typing import List, Dict
 
@@ -85,3 +86,36 @@ class BPE(ABC):
             else:
                 tokens.append('')  # Специальное значение
         return tokens
+
+    def save(self, filename):
+        with open(filename, 'wb') as f:
+            dill.dump(self, f)
+        print(f"Объект сохранён в {filename}")
+
+
+    @classmethod
+    def load(cls, filename):
+        """Загружает токенизатор из файла.
+        
+        Args:
+            filename (str): Путь к файлу с сохраненным токенизатором
+            
+        Returns:
+            BPE: Загруженный экземпляр токенизатора
+            
+        Пример:
+            >>> tokenizer = BPE.load("bpe_tokenizer.pkl")
+        """
+        """Load trained tokenizer from file.
+        
+        Args:
+            filename (str): Path to saved tokenizer
+            
+        Returns:
+            BPE: Loaded tokenizer instance
+        """
+        with open(filename, 'rb') as f:
+            obj = dill.load(f)
+                
+        print(f"Объект загружен из {filename}")
+        return obj

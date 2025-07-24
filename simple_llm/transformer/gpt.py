@@ -333,6 +333,9 @@ class GPT(nn.Module):
             >>> # Обучаем модель
             >>> model.fit(loader, num_epoch=5, learning_rate=0.001)
         """
+        from tqdm import tqdm
+        import time
+
         if train_loader is None:
             raise ValueError("train_loader не может быть None")
         if num_epoch <= 0:
@@ -344,13 +347,24 @@ class GPT(nn.Module):
         self.to(device)
     
         optimizer = torch.optim.Adam(self.parameters(), lr=learning_rate)
-    
+        
+        print(f"\nНачало обучения GPT на {num_epoch} эпох")
+        print(f"Размер батча: {train_loader.batch_size}")
+        print(f"Всего батчей: {len(train_loader)}")
+        print(f"Устройство: {device}\n")
+
         for epoch in range(num_epoch):
             self.train()
             epoch_loss = 0.0
-    
-            #for inputs, targets in tqdm(train_loader, desc=f"Epoch {epoch+1}/{num_epoch}"):
-            for inputs, targets in train_loader:
+            start_time = time.time()
+            
+            # Прогресс-бар для батчей
+            batch_pbar = tqdm(train_loader, 
+                            desc=f"Эпоха {epoch+1}/{num_epoch}",
+                            leave=False,
+                            bar_format='{l_bar}{bar}| {n_fmt}/{total_fmt} [{elapsed}<{remaining}]')
+            
+            for batch_idx, (inputs, targets) in enumerate(batch_pbar):
                 inputs = inputs.to(device)
                 targets = targets.to(device)
     
@@ -364,15 +378,33 @@ class GPT(nn.Module):
                 optimizer.step()
     
                 epoch_loss += loss.item()
+                
+                # Обновляем описание прогресс-бара
+                batch_pbar.set_postfix({
+                    'loss': f"{loss.item():.4f}",
+                    'lr': f"{learning_rate:.0e}"
+                })
+                
+                # Логирование каждые N батчей
+                if batch_idx % 10 == 0:
+                    tqdm.write(f"Батч {batch_idx}/{len(train_loader)} - Loss: {loss.item():.4f}")
     
             self.train_loss = epoch_loss / len(train_loader)
-            #print(f"[{epoch+1}/{num_epoch}] Train Loss: {self.train_loss:.4f}", end='')
+            epoch_time = time.time() - start_time
+            
+            print(f"\nЭпоха {epoch+1}/{num_epoch} завершена за {epoch_time:.2f} сек")
+            print(f"Средний Train Loss: {self.train_loss:.4f}")
     
             if valid_loader is not None:
                 self.eval()
                 valid_loss = 0.0
                 with torch.no_grad():
-                    for inputs, targets in valid_loader:
+                    # Прогресс-бар для валидации
+                    valid_pbar = tqdm(valid_loader, 
+                                    desc=f"Валидация {epoch+1}/{num_epoch}",
+                                    leave=False)
+                    
+                    for inputs, targets in valid_pbar:
                         inputs = inputs.to(device)
                         targets = targets.to(device)
     
@@ -384,4 +416,4 @@ class GPT(nn.Module):
                         valid_loss += loss.item()
     
                 self.validation_loss = valid_loss / len(valid_loader)
-                #print(f" | Val Loss: {self.validation_loss:.4f}")
+                print(f"Средний Val Loss: {self.validation_loss:.4f}")

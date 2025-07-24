@@ -1,5 +1,5 @@
 from .bpe_interface import BPE
-
+from tqdm import tqdm
 from collections import Counter
 from typing import List, Tuple, Dict
 
@@ -18,19 +18,34 @@ class OptimizeBPE(BPE):
         self._init_vocab(sequence)
         pair_freq, pair_first_occurrence = self._get_pair_stats(sequence)
 
-        while len(self.vocab) < self.vocab_size and pair_freq:
-            pair_to_merge = self._select_pair_to_merge(pair_freq, pair_first_occurrence)
-            new_token = pair_to_merge[0] + pair_to_merge[1]
+        # Инициализация прогресс-бара
+        with tqdm(total=self.vocab_size, desc="Building vocabulary") as pbar:
+            pbar.update(len(self.vocab))  # Учитываем начальные токены
 
-            if new_token in self.vocab:
-                # Защита от зацикливания: пара уже была добавлена как новый токен.
-                del pair_freq[pair_to_merge]
-                continue
+            while len(self.vocab) < self.vocab_size and pair_freq:
+                pair_to_merge = self._select_pair_to_merge(pair_freq, pair_first_occurrence)
+                new_token = pair_to_merge[0] + pair_to_merge[1]
+                
+                # Обновляем прогресс и логируем
+                pbar.update(1)
+                pbar.set_postfix({
+                    'current_vocab': len(self.vocab),
+                    'top_pair': f"{pair_to_merge[0]}{pair_to_merge[1]}",
+                    'pair_freq': pair_freq[pair_to_merge]
+                })
+                print(f"\nТекущий размер словаря: {len(self.vocab)}/{self.vocab_size}")
+                print(f"Самая частая пара: {pair_to_merge} (встречается {pair_freq[pair_to_merge]} раз)")
+                print(f"Добавлен новый токен: '{new_token}'")
 
-            self.vocab.append(new_token)
-            sequence, pair_freq, pair_first_occurrence = self._merge_pair(
-                sequence, pair_to_merge, new_token, pair_freq
-            )
+                if new_token in self.vocab:
+                    # Защита от зацикливания: пара уже была добавлена как новый токен.
+                    del pair_freq[pair_to_merge]
+                    continue
+
+                self.vocab.append(new_token)
+                sequence, pair_freq, pair_first_occurrence = self._merge_pair(
+                    sequence, pair_to_merge, new_token, pair_freq
+                )
 
         self._build_token_dicts()
 
