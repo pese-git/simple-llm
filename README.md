@@ -28,7 +28,7 @@ source venv/bin/activate  # Linux/Mac
 # или venv\Scripts\activate  # Windows
 
 # 3. Установите зависимости
-pip install torch==2.0.1
+pip install torch
 pip install dill tqdm  # Основные зависимости для работы
 
 # Установка simple_llm пакета
