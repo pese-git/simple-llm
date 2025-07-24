@@ -214,3 +214,7 @@ trained_gpt_model.pt
 data/corpus/pushkin_poetry
 
 .DS_Store
+
+data/model/
+data/tokenizer/
+data/tokens/
