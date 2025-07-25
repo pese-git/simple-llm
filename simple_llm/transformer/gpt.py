@@ -5,6 +5,11 @@ from torch.utils.data import DataLoader
 from simple_llm.embedding.token_embeddings import TokenEmbeddings
 from simple_llm.embedding.positional_embeddings import PositionalEmbeddings
 from simple_llm.transformer.decoder import Decoder
+from simple_llm.transformer.callback import (
+    EarlyStoppingCallback,
+    LRSchedulerCallback,
+    ModelCheckpointCallback
+)
 
 class GPT(nn.Module):
     """GPT-like трансформер для генерации текста
@@ -287,51 +292,60 @@ class GPT(nn.Module):
         train_loader: DataLoader,
         valid_loader: DataLoader = None,
         num_epoch: int = 1,
-        learning_rate: float = 0.001
+        learning_rate: float = 0.001,
+        callbacks=None,
+        checkpoint_dir=None
     ):
-        """Обучает модель GPT на предоставленных данных.
+        """Обучает модель GPT с поддержкой callback-системы.
         
         Процесс обучения включает:
-        - Прямой проход для получения предсказаний
-        - Вычисление потерь с помощью кросс-энтропии
-        - Обратное распространение ошибки
-        - Обновление весов через оптимизатор Adam
-        
+        - Подготовку callback-ов (EarlyStopping, ModelCheckpoint, LRScheduler)
+        - Цикл обучения с вызовами callback-методов:
+          * on_epoch_begin - перед началом эпохи
+          * on_batch_end - после каждого батча
+          * on_epoch_end - в конце эпохи
+        - Автоматическое сохранение чекпоинтов (если указана директория)
+        - Валидацию (если передан valid_loader)
+
         Args:
             train_loader (DataLoader): Загрузчик обучающих данных, возвращающий пары (inputs, targets).
                 inputs - тензор индексов токенов формы [batch_size, seq_len]
                 targets - тензор индексов следующих токенов формы [batch_size, seq_len]
-            valid_loader (DataLoader, optional): Загрузчик валидационных данных. Если None, 
-                валидация не выполняется. По умолчанию None.
+            valid_loader (DataLoader, optional): Загрузчик валидационных данных. По умолчанию None.
             num_epoch (int, optional): Количество эпох обучения. По умолчанию 1.
-            learning_rate (float, optional): Скорость обучения для оптимизатора. По умолчанию 0.001.
-        
+            learning_rate (float, optional): Начальная скорость обучения. По умолчанию 0.001.
+            callbacks (List[Callback], optional): Список callback-объектов. По умолчанию:
+                - EarlyStoppingCallback(patience=5)
+                - ModelCheckpointCallback(checkpoint_dir)
+                - LRSchedulerCallback(lr=learning_rate)
+            checkpoint_dir (str, optional): Директория для сохранения чекпоинтов. По умолчанию None.
+
         Returns:
             None
-        
+
         Raises:
             ValueError: Если train_loader равен None
             ValueError: Если num_epoch ≤ 0
             ValueError: Если learning_rate ≤ 0
-        
+
         Side Effects:
-            - Обновляет параметры модели (self.parameters())
-            - Устанавливает атрибуты:
-                self.train_loss: Средние потери на обучении за последнюю эпоху
-                self.validation_loss: Средние потери на валидации за последнюю эпоху (если valid_loader передан)
-        
+            - Обновляет параметры модели
+            - Сохраняет чекпоинты (если указана директория)
+            - Может остановить обучение досрочно через callback
+            
         Examples:
-            >>> from torch.utils.data import DataLoader, TensorDataset
-            >>> # Создаем тестовые данные
-            >>> inputs = torch.randint(0, 100, (100, 10))
-            >>> targets = torch.randint(0, 100, (100, 10))
-            >>> dataset = TensorDataset(inputs, targets)
-            >>> loader = DataLoader(dataset, batch_size=32)
-            >>> # Инициализируем модель
-            >>> model = GPT(vocab_size=100, max_seq_len=20, emb_size=64, 
-            ...             num_heads=4, head_size=16, num_layers=2)
-            >>> # Обучаем модель
-            >>> model.fit(loader, num_epoch=5, learning_rate=0.001)
+            >>> # Базовый пример
+            >>> model.fit(train_loader)
+            
+            >>> # С callback-ами
+            >>> callbacks = [
+            ...     EarlyStoppingCallback(patience=3),
+            ...     ModelCheckpointCallback('checkpoints/')
+            ... ]
+            >>> model.fit(train_loader, callbacks=callbacks, num_epoch=10)
+            
+            >>> # С валидацией
+            >>> model.fit(train_loader, valid_loader=valid_loader)
         """
         from tqdm import tqdm
         import time
@@ -345,8 +359,21 @@ class GPT(nn.Module):
     
         device = torch.device(self._device)
         self.to(device)
+
+        # Инициализация callbacks по умолчанию
+        if callbacks is None:
+            callbacks = []
+
+        # Добавляем обязательные callback-и
+        default_callbacks = [
+            EarlyStoppingCallback(patience=5),
+            LRSchedulerCallback(lr=learning_rate)
+        ]
+        callbacks = default_callbacks + callbacks
+        if checkpoint_dir is not None:
+            callbacks = [ModelCheckpointCallback(checkpoint_dir)] + callbacks
     
-        optimizer = torch.optim.Adam(self.parameters(), lr=learning_rate)
+        self.optimizer = torch.optim.Adam(self.parameters(), lr=learning_rate)
         
         print(f"\nНачало обучения GPT на {num_epoch} эпох")
         print(f"Размер батча: {train_loader.batch_size}")
@@ -354,6 +381,10 @@ class GPT(nn.Module):
         print(f"Устройство: {device}\n")
 
         for epoch in range(num_epoch):
+            # Вызов callback перед эпохой
+            for cb in callbacks:
+                cb.on_epoch_begin(epoch, self)
+
             self.train()
             epoch_loss = 0.0
             start_time = time.time()
@@ -373,9 +404,9 @@ class GPT(nn.Module):
                 targets = targets.view(-1)
     
                 loss = F.cross_entropy(logits, targets)
-                optimizer.zero_grad()
+                self.optimizer.zero_grad()
                 loss.backward()
-                optimizer.step()
+                self.optimizer.step()
     
                 epoch_loss += loss.item()
                 
@@ -388,6 +419,10 @@ class GPT(nn.Module):
                 # Логирование каждые N батчей
                 if batch_idx % 10 == 0:
                     tqdm.write(f"Батч {batch_idx}/{len(train_loader)} - Loss: {loss.item():.4f}")
+
+                # Вызов callback после батча
+                for cb in callbacks:
+                    cb.on_batch_end(batch_idx, self, loss.item())
     
             self.train_loss = epoch_loss / len(train_loader)
             epoch_time = time.time() - start_time
@@ -417,3 +452,13 @@ class GPT(nn.Module):
     
                 self.validation_loss = valid_loss / len(valid_loader)
                 print(f"Средний Val Loss: {self.validation_loss:.4f}")
+
+            # Вызов callback после эпохи
+            stop_training = False
+            for cb in callbacks:
+                if cb.on_epoch_end(epoch, self, self.train_loss, self.validation_loss):
+                    stop_training = True
+            
+            if stop_training:
+                print("Обучение остановлено callback-ом")
+                break
