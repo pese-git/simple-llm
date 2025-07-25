@@ -76,7 +76,8 @@ def main():
     model.fit(
         train_loader=loader,
         num_epoch=args.epochs,
-        learning_rate=args.lr
+        learning_rate=args.lr,
+        checkpoint_dir=output_dir
     )
     torch.save(model.state_dict(), args.output)
 
