@@ -12,6 +12,9 @@ class Callback:
     - on_batch_end - после обработки батча 
     - on_epoch_end - в конце эпохи
     """
+
+    def on_train_begin(self, model):
+        pass
     
     def on_epoch_begin(self, epoch, model):
         """Вызывается перед началом эпохи.
