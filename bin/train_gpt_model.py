@@ -73,11 +73,22 @@ def main():
     )
 
     # Обучение
+    # Определяем стартовую эпоху
+    start_epoch = 0
+    if os.path.exists(output_dir):
+        checkpoint_files = [f for f in os.listdir(output_dir) if f.startswith('checkpoint_epoch_')]
+        if checkpoint_files:
+            last_epoch = max([int(f.split('_')[2].split('.')[0]) for f in checkpoint_files])
+            start_epoch = last_epoch + 1
+            print(f"⚡ Восстанавливаем обучение с эпохи {start_epoch}")
+
     model.fit(
         train_loader=loader,
-        num_epoch=args.epochs,
+        num_epoch=args.epochs - start_epoch,
         learning_rate=args.lr,
-        checkpoint_dir=output_dir
+        checkpoint_dir=output_dir,
+        resume_training=True,
+        start_epoch=start_epoch
     )
     torch.save(model.state_dict(), args.output)
 
