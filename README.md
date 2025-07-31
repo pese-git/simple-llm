@@ -37,7 +37,25 @@ pip install .
 
 ## 📂 Подготовка данных
 
-Поместите текстовые файлы (.txt) в папку:
+### Где взять текстовые корпуса для обучения?
+
+Подборка открытых корпусов по русской литературе и фольклору:
+
+- **[Собрание стихотворений А. С. Пушкина](https://dataverse.pushdom.ru/dataset.xhtml?persistentId=doi:10.31860/openlit-2023.8-C005)**  
+- **[Корпус народных песен первой половины XIX века](https://dataverse.pushdom.ru/dataset.xhtml?persistentId=doi:10.31860/openlit-2019.11-C003)**  
+- **[Сборник русских литературных баллад 1840-х годов](https://dataverse.pushdom.ru/dataset.xhtml?persistentId=doi:10.31860/openlit-2021.9-C003)**  
+- **[Коллекция русских элегий 1815–1835 годов](https://dataverse.pushdom.ru/dataset.xhtml?persistentId=doi:10.31860/openlit-2019.11-C001)**  
+- **[Архив публикаций журнала «Современник» (1847–1866)](https://stepik.org/lesson/1624883/step/1?unit=1647042#:~:text=%D0%9A%D0%BE%D1%80%D0%BF%D1%83%D1%81%20%D0%BF%D1%83%D0%B1%D0%BB%D0%B8%D0%BA%D0%B0%D1%86%D0%B8%D0%B9%20%D0%B6%D1%83%D1%80%D0%BD%D0%B0%D0%BB%D0%B0%20%C2%AB%D0%A1%D0%BE%D0%B2%D1%80%D0%B5%D0%BC%D0%B5%D0%BD%D0%BD%D0%B8%D0%BA%C2%BB%201847%E2%80%931866)**
+- **[19 000 Russian Poems](https://www.kaggle.com/datasets/grafstor/19-000-russian-poems)** — коллекция из 19 тысяч стихотворений на русском языке.
+- **[Russian Novels](https://github.com/JoannaBy/RussianNovels/tree/master)** — библиотека классических русских романов (около сотни произведений).
+- **[artificial-dostoevsky](https://gitlab.com/z00logist/artificial-dostoevsky)** — собрание из 34 произведений Фёдора Достоевского, включая его известные романы и рассказы.
+- **[Russian Financial News](https://www.kaggle.com/datasets/kkhubiev/russian-financial-news)** — датасет, включающий тексты финансовых новостей на русском.
+
+Это лишь часть доступных собранных корпусов. В дополнение к ним в интернете можно самостоятельно найти и загрузить тексты отдельных классических произведений (Пушкин, Лермонтов, Толстой и др.).
+
+Помимо литературных источников, вы можете сформировать собственный датасет из других ресурсов. Например, для обучения модели подойдут статьи из Википедии — доступны [официальные дампы](https://dumps.wikimedia.org/ruwiki/latest/?spm=a2ty_o01.29997173.0.0.3565c921IkqB7g), для их обработки удобно применять инструмент [wikiextractor](https://github.com/attardi/wikiextractor).
+
+Скачайте нужный корпус, распакуйте архив (если нужно) и поместите текстовые файлы (.txt) в папку:
 ```
 data/
 └── corpus/
