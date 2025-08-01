@@ -42,6 +42,7 @@ def main():
     parser.add_argument('--lr', type=float, default=0.0001,
                       help='Learning rate')
     
+    parser.add_argument('--keep-last-n', type=int, default=3, help='Сколько последних чекпоинтов хранить')
     args = parser.parse_args()
 
     # Проверяем и создаем директорию для сохранения
@@ -88,7 +89,8 @@ def main():
         learning_rate=args.lr,
         checkpoint_dir=output_dir,
         resume_training=True,
-        start_epoch=start_epoch
+        start_epoch=start_epoch,
+        keep_last_n=args.keep_last_n
     )
     torch.save(model.state_dict(), args.output)
 

@@ -30,6 +30,7 @@ source venv/bin/activate  # Linux/Mac
 # 3. Установите зависимости
 pip install torch
 pip install dill tqdm  # Основные зависимости для работы
+pip install pytest
 
 # Установка simple_llm пакета
 pip install .
@@ -94,8 +95,10 @@ python bin/train_gpt_model.py \
   --epochs 3 \
   --emb-size 64 \
   --num-heads 2 \
-  --num-layers 2
+  --num-layers 2 \
+  --keep-last-n 3
 ```
+> Аргумент `--keep-last-n` определяет, сколько последних чекпоинтов (snapshot'ов обучения) хранить в папке модели. По умолчанию — 3. Старые файлы удаляются автоматически для экономии места.
 
 ### ✔️ Восстановление обучения с чекпоинта
 
@@ -130,7 +133,7 @@ python bin/generate_text.py \
 # Последовательно выполните:
 ./bin/train_tokenizer.py --corpus data/corpus/sample --output data/tokenizer/bpe.json
 ./bin/tokenize_corpus.py --corpus data/corpus/sample --tokenizer data/tokenizer/bpe.json
-./bin/train_gpt_model.py --tokens data/tokens/corpus_tokens.pkl --tokenizer data/tokenizer/bpe.json
+./bin/train_gpt_model.py --tokens data/tokens/corpus_tokens.pkl --tokenizer data/tokenizer/bpe.json --keep-last-n 3
 ./bin/generate_text.py --model data/model/gpt_model.pth --tokenizer data/tokenizer/bpe.json --prompt "Привет"
 ```
 
