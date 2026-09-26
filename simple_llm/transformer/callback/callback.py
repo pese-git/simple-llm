@@ -8,12 +8,18 @@ class Callback:
     """Абстрактный базовый класс для всех callback-ов.
     
     Методы вызываются автоматически во время обучения:
+    - on_train_begin - один раз перед обучением (оптимизатор уже создан)
     - on_epoch_begin - перед началом эпохи
-    - on_batch_end - после обработки батча 
+    - on_batch_end - после обработки батча
     - on_epoch_end - в конце эпохи
     """
 
     def on_train_begin(self, model):
+        """Вызывается один раз перед первой эпохой.
+
+        Args:
+            model (GPT): Обучаемая модель GPT (model.optimizer уже создан)
+        """
         pass
     
     def on_epoch_begin(self, epoch, model):

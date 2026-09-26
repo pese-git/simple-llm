@@ -1,12 +1,16 @@
-# /Users/sergey/Projects/ML/simple-llm/simple_llm/transformer/callback/resume_training_callback.py
-import os
 import torch
-from typing import Optional
 from .callback import Callback
+from .model_checkpoint_callback import list_checkpoints
 
 class ResumeTrainingCallback(Callback):
-    """Callback для восстановления обучения с последнего чекпоинта"""
-    
+    """Callback для восстановления обучения с последнего чекпоинта.
+
+    В on_train_begin загружает веса модели, состояние оптимизатора и состояния
+    callback-ов из самого свежего читаемого чекпоинта. Нечитаемые (битые) файлы
+    пропускаются. Если чекпоинт не подходит к архитектуре модели, выбрасывается
+    исключение — иначе обучение молча началось бы с нуля.
+    """
+
     def __init__(self, checkpoint_dir: str, resume: bool = True):
         """
         Args:
@@ -16,51 +20,35 @@ class ResumeTrainingCallback(Callback):
         self.checkpoint_dir = checkpoint_dir
         self.resume = resume
         self.last_epoch = -1
-        
+
     def on_train_begin(self, model):
+        self.last_epoch = -1
         if not self.resume:
             return
-        checkpoint_path = self._find_latest_checkpoint()
-        if checkpoint_path:
+
+        for epoch, path in reversed(list_checkpoints(self.checkpoint_dir)):
             try:
-                print(f"\n⚡ Восстанавливаем обучение из {checkpoint_path}")
-                checkpoint = torch.load(checkpoint_path, map_location=model._device)
-                # Убедимся, что загружаем на правильное устройство
-                model.load_state_dict(checkpoint['model_state_dict'])
-                if 'optimizer_state_dict' in checkpoint:
-                    model.optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
-                if 'scheduler_state_dict' in checkpoint and checkpoint['scheduler_state_dict'] is not None:
-                    if hasattr(model, 'scheduler'):
-                        model.scheduler.load_state_dict(checkpoint['scheduler_state_dict'])
-                self.last_epoch = checkpoint.get('epoch', -1)
-                print(f"➔ Продолжаем с эпохи {self.last_epoch + 1}")
-                print(f"➔ Последний loss: {checkpoint.get('train_loss', 'N/A'):.4f}\n")
+                checkpoint = torch.load(path, map_location=model._device)
             except Exception as e:
-                print(f"⚠️ Чекпоинт поврежден или не читается: {checkpoint_path}\n{e}")
-                # Найти максимальный существующий checkpoint по файловой системе
-                import glob, os
-                cp_files = glob.glob(os.path.join(self.checkpoint_dir, 'checkpoint_epoch_*.pt'))
-                if cp_files:
-                    try:
-                        self.last_epoch = max([int(os.path.splitext(os.path.basename(f))[0].split('_')[-1]) for f in cp_files])
-                    except Exception:
-                        self.last_epoch = -1
-                else:
-                    self.last_epoch = -1
-        else:
-            # Если файлов совсем нет
-            self.last_epoch = -1
-    
-    def _find_latest_checkpoint(self) -> Optional[str]:
-        if not os.path.exists(self.checkpoint_dir):
-            return None
-            
-        checkpoints = [f for f in os.listdir(self.checkpoint_dir) 
-                      if f.startswith('checkpoint_') and f.endswith('.pt')]
-        
-        if not checkpoints:
-            return None
-            
-        # Сортируем по времени создания
-        checkpoints.sort(key=lambda x: os.path.getmtime(os.path.join(self.checkpoint_dir, x)))
-        return os.path.join(self.checkpoint_dir, checkpoints[-1])
+                print(f"⚠️ Чекпоинт поврежден или не читается, пропускаем: {path}\n{e}")
+                continue
+
+            print(f"\n⚡ Восстанавливаем обучение из {path}")
+            model.load_state_dict(checkpoint['model_state_dict'])
+            optimizer = getattr(model, 'optimizer', None)
+            if optimizer is not None and 'optimizer_state_dict' in checkpoint:
+                optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
+
+            callback_states = checkpoint.get('callback_states', {})
+            for cb in getattr(model, '_callbacks', []):
+                state = callback_states.get(cb.__class__.__name__)
+                if state is not None and hasattr(cb, 'set_state'):
+                    cb.set_state(state)
+
+            self.last_epoch = checkpoint.get('epoch', epoch)
+            print(f"➔ Продолжаем с эпохи {self.last_epoch + 1}")
+            if checkpoint.get('train_loss') is not None:
+                print(f"➔ Последний loss: {checkpoint['train_loss']:.4f}\n")
+            return
+
+        print("Чекпоинты для восстановления не найдены, обучение начинается с нуля")

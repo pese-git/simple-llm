@@ -7,7 +7,6 @@ Callback-система для управления обучением GPT.
 - LRSchedulerCallback - регулировка learning rate
 """
 
-# /Users/sergey/Projects/ML/simple-llm/simple_llm/transformer/callback/__init__.py
 from .callback import Callback
 from .early_stopping_callback import EarlyStoppingCallback
 from .lrs_scheduler_callback import LRSchedulerCallback

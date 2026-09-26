@@ -9,6 +9,7 @@ import torch
 from torch.utils.data import DataLoader
 from simple_llm.data.get_data import GetData
 from simple_llm.transformer.gpt import GPT
+from simple_llm.transformer.callback.model_checkpoint_callback import list_checkpoints
 from simple_llm.tokenizer.optimize_bpe import OptimizeBPE
 
 def main():
@@ -73,23 +74,23 @@ def main():
         device=device
     )
 
-    # Обучение
-    # Определяем стартовую эпоху
-    start_epoch = 0
-    if os.path.exists(output_dir):
-        checkpoint_files = [f for f in os.listdir(output_dir) if f.startswith('checkpoint_epoch_')]
-        if checkpoint_files:
-            last_epoch = max([int(f.split('_')[2].split('.')[0]) for f in checkpoint_files])
-            start_epoch = last_epoch + 1
-            print(f"⚡ Восстанавливаем обучение с эпохи {start_epoch}")
+    # Обучение: --epochs — общее число эпох, уже пройденные берём из чекпоинтов
+    checkpoints = list_checkpoints(output_dir)
+    done_epochs = checkpoints[-1][0] + 1 if checkpoints else 0
+    remaining_epochs = args.epochs - done_epochs
+    if remaining_epochs <= 0:
+        print(f"Обучение уже завершено: пройдено {done_epochs} из {args.epochs} эпох. "
+              f"Чтобы продолжить, увеличьте --epochs.")
+        return
+    if done_epochs:
+        print(f"⚡ Найдены чекпоинты: пройдено {done_epochs} эпох, осталось {remaining_epochs}")
 
     model.fit(
         train_loader=loader,
-        num_epoch=args.epochs - start_epoch,
+        num_epoch=remaining_epochs,
         learning_rate=args.lr,
         checkpoint_dir=output_dir,
         resume_training=True,
-        start_epoch=start_epoch,
         keep_last_n=args.keep_last_n
     )
     torch.save(model.state_dict(), args.output)

@@ -303,8 +303,9 @@ class GPT(nn.Module):
         """Обучает модель GPT с поддержкой callback-системы.
         
         Процесс обучения включает:
-        - Подготовку callback-ов (EarlyStopping, ModelCheckpoint, LRScheduler)
+        - Подготовку callback-ов (EarlyStopping, ModelCheckpoint, LRScheduler, ResumeTraining)
         - Цикл обучения с вызовами callback-методов:
+          * on_train_begin - один раз перед обучением (здесь resume загружает чекпоинт)
           * on_epoch_begin - перед началом эпохи
           * on_batch_end - после каждого батча
           * on_epoch_end - в конце эпохи
@@ -318,11 +319,18 @@ class GPT(nn.Module):
             valid_loader (DataLoader, optional): Загрузчик валидационных данных. По умолчанию None.
             num_epoch (int, optional): Количество эпох обучения. По умолчанию 1.
             learning_rate (float, optional): Начальная скорость обучения. По умолчанию 0.001.
-            callbacks (List[Callback], optional): Список callback-объектов. По умолчанию:
+            callbacks (List[Callback], optional): Список callback-объектов. Переданный список
+                не изменяется. Стандартные callback-и добавляются, только если callback
+                того же типа не передан:
                 - EarlyStoppingCallback(patience=5)
-                - ModelCheckpointCallback(checkpoint_dir)
+                - ModelCheckpointCallback(checkpoint_dir, save_best_only=False) - если задан checkpoint_dir
                 - LRSchedulerCallback(lr=learning_rate)
             checkpoint_dir (str, optional): Директория для сохранения чекпоинтов. По умолчанию None.
+            resume_training (bool, optional): Продолжить обучение с последнего чекпоинта
+                из checkpoint_dir (веса, оптимизатор, состояния callback-ов). По умолчанию False.
+            start_epoch (int, optional): Номер первой эпохи, если восстановления не было.
+                При успешном resume заменяется на (эпоха чекпоинта + 1). По умолчанию 0.
+            keep_last_n (int, optional): Сколько последних чекпоинтов хранить. По умолчанию 3.
 
         Returns:
             None
@@ -364,45 +372,40 @@ class GPT(nn.Module):
         device = torch.device(self._device)
         self.to(device)
 
-        # Инициализация callback-ов
-        if callbacks is None:
-            callbacks = []
+        # Копируем список, чтобы не менять переданный пользователем
+        callbacks = list(callbacks) if callbacks else []
 
-        # Добавляем Resume callback если нужно
-        if resume_training and checkpoint_dir:
-            print(f"Восстановление обучения GPT")
+        def has_callback(cls):
+            return any(isinstance(cb, cls) for cb in callbacks)
+
+        # Resume callback должен идти первым: он загружает веса до остальных
+        if resume_training and checkpoint_dir and not has_callback(ResumeTrainingCallback):
             callbacks.insert(0, ResumeTrainingCallback(checkpoint_dir, resume=True))
 
-        # Стандартные callback-и
-        callbacks.extend([
-            EarlyStoppingCallback(patience=5),
-            LRSchedulerCallback(lr=learning_rate)
-        ])
+        # Стандартные callback-и (если пользователь не передал свои)
+        if not has_callback(EarlyStoppingCallback):
+            callbacks.append(EarlyStoppingCallback(patience=5))
+        if not has_callback(LRSchedulerCallback):
+            callbacks.append(LRSchedulerCallback(lr=learning_rate))
+        if checkpoint_dir and not has_callback(ModelCheckpointCallback):
+            # Сохраняем каждую эпоху, чтобы resume продолжал с последней, а не с лучшей
+            callbacks.append(ModelCheckpointCallback(
+                checkpoint_dir, save_best_only=False, keep_last_n=keep_last_n
+            ))
 
-        if checkpoint_dir:
-            callbacks.append(ModelCheckpointCallback(checkpoint_dir, keep_last_n=keep_last_n))
+        self._callbacks = callbacks
 
-        # Инициализация оптимизатора ДО вызова callback'ов
+        # Оптимизатор создаётся ДО on_train_begin, чтобы resume мог загрузить его состояние
         self.optimizer = torch.optim.Adam(self.parameters(), lr=learning_rate)
 
-        # Определяем стартовую эпоху
-        start_epoch = 0
+        for cb in callbacks:
+            cb.on_train_begin(self)
+
+        # Стартовая эпоха: из восстановленного чекпоинта, иначе из аргумента
         for cb in callbacks:
             if isinstance(cb, ResumeTrainingCallback) and cb.last_epoch >= 0:
                 start_epoch = cb.last_epoch + 1
                 break
-
-        # Проверка через реальные файлы чекпоинтов (если они удалены или keep_last_n, брать max файл)
-        import glob, os
-        if checkpoint_dir is not None:
-            cp_files = glob.glob(os.path.join(checkpoint_dir, 'checkpoint_epoch_*.pt'))
-            if cp_files:
-                try:
-                    max_cp = max([int(os.path.splitext(os.path.basename(f))[0].split('_')[-1]) for f in cp_files])
-                    if max_cp + 1 > start_epoch:
-                        start_epoch = max_cp + 1
-                except Exception:
-                    pass
 
         final_epoch_num = start_epoch + num_epoch
         print(f"\nНачало обучения GPT на {num_epoch} эпох (с {start_epoch + 1} по {final_epoch_num})")
@@ -484,17 +487,11 @@ class GPT(nn.Module):
                 self.validation_loss = valid_loss / len(valid_loader)
                 print(f"Средний Val Loss: {self.validation_loss:.4f}")
 
-            # Вызов callback после эпохи — теперь передаём global_epoch (гарантируем уникальность чекпоинта)
+            # Вызов callback после эпохи (сквозной номер эпохи, как и в on_epoch_begin)
             stop_training = False
             for cb in callbacks:
-                # ModelCheckpointCallback — строго global_epoch
-                if isinstance(cb, ModelCheckpointCallback):
-                    if cb.on_epoch_end(global_epoch, self, self.train_loss, self.validation_loss):
-                        stop_training = True
-                else:
-                    # Старые/другие коллбэки — epoch_local
-                    if cb.on_epoch_end(epoch_local, self, self.train_loss, self.validation_loss):
-                        stop_training = True
+                if cb.on_epoch_end(global_epoch, self, self.train_loss, self.validation_loss):
+                    stop_training = True
             
             if stop_training:
                 print("Обучение остановлено callback-ом")
